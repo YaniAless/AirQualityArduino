@@ -3,15 +3,22 @@
 #include <ESP8266WebServer.h>
 #include <ArduinoJson.h>
 #include "Adafruit_CCS811.h"
+#include "DHT.h"
 
 #ifndef APSSID
 #define APSSID "AQBox" // For testing
 #define APPSK  "123456789" // For testing
+#define DHTPIN 2
+#define DHTTYPE DHT11
 #endif
 
 /* Set these to your desired credentials. */
 const char *ssid = APSSID;
 const char *password = APPSK;
+const char *sensorsNumber = "4";
+String caseName = "AIRQUALITY_1";
+
+DHT dht(DHTPIN, DHTTYPE);
 
 ESP8266WebServer server(8080);
 Adafruit_CCS811 ccs;
@@ -26,11 +33,12 @@ void setup(){
 
   settingServer();
   settingCCSParameters(); 
+  dht.begin();
 }
 
 void loop() {
   server.handleClient();
-  readDataIfAvailable();
+  //readDataIfAvailable();
 }
 
 /// SERVER-START
@@ -56,6 +64,9 @@ void settingServer() {
   server.on("/co2", getCO2);
   server.on("/tvoc", getTVOC);
   server.on("/temp", getTemp);
+  server.on("/humidity", getHumidity);  
+  server.on("/settings", getOrUpdateSettings);
+  
   server.begin();
   Serial.println("HTTP server started");
 }
@@ -107,6 +118,64 @@ void getTemp() {
   }
 }
 
+void getHumidity() {
+  StaticJsonDocument<200> doc;
+  doc["humidity"] = getCurrentHumidity();  
+  String responseAsJsonStr;
+  serializeJson(doc, responseAsJsonStr);
+  
+  if(responseAsJsonStr){
+    server.send(200, "application/json", responseAsJsonStr);
+  }
+  else{
+    server.send(204, "text/plain", "No content" );
+  }
+}
+
+void getOrUpdateSettings() {
+  if(server.method() == HTTP_POST){
+    if(server.hasArg("plain") == false){
+      server.send(200, "text/plain", "Body not received");
+    }
+    String body = server.arg("plain");
+    StaticJsonDocument<200> doc;
+    DeserializationError err = deserializeJson(doc, body);
+
+    if(err){
+      Serial.print("ERROR : ");
+      Serial.println(err.c_str());
+    }
+
+    if(doc["caseName"].as<String>() != ""){
+      caseName = doc["caseName"].as<String>();
+      Serial.println(caseName);
+      server.send(200,"text/plain", caseName);
+    } else {
+      Serial.println(caseName);
+      server.send(200,"text/plain", "No param found");
+    }   
+    
+    
+    
+  } else if(server.method() == HTTP_GET){
+    StaticJsonDocument<200> doc;
+  
+    doc["settings"]["name"] = caseName;
+    doc["settings"]["sensorsNumber"] = sensorsNumber;
+    
+    String responseAsJsonStr;
+    serializeJson(doc, responseAsJsonStr);
+    
+    if(responseAsJsonStr){
+      server.send(200, "application/json", responseAsJsonStr);
+    }
+    else{
+      server.send(204, "text/plain", "No content" );
+    }
+  }
+  
+}
+
 /// SERVER-END
 /// 
 /// FUNCTIONS AND STUFF
@@ -138,6 +207,7 @@ void readDataIfAvailable(){
       int co2 = getCO2Datas();
       int tvoc = getTVOCDatas();
       float temp = getCurrentTemperature();
+      float humidity = getCurrentHumidity();
     }
     else{
       Serial.println("Error, can't get any datas !");
@@ -150,7 +220,7 @@ void readDataIfAvailable(){
 int getCO2Datas(){
   int co2 = ccs.geteCO2();
   if(co2){
-    Serial.println(String("CO2: ") + co2 + String(" ppm"));
+    //Serial.println(String("CO2: ") + co2 + String(" ppm"));
     return co2;
   }
   else {
@@ -163,7 +233,7 @@ int getTVOCDatas(){
   int tvocValue = ccs.getTVOC();
 
   if(ccs.geteCO2()){
-    Serial.println(String("TVOC: ") + tvocValue + String(" ppb"));
+    //Serial.println(String("TVOC: ") + tvocValue + String(" ppb"));
     return tvocValue;
   }
   else {
@@ -175,8 +245,15 @@ int getTVOCDatas(){
 float getCurrentTemperature(){
   float celciusTemperature = ccs.calculateTemperature();
   
-  Serial.println(String("Temp: ") + celciusTemperature + String(" C°"));
+  //Serial.println(String("Temp: ") + celciusTemperature + String(" C°"));
   return celciusTemperature;
+}
+
+float getCurrentHumidity(){
+  float humidity = dht.readHumidity();
+  
+  //Serial.println(String("Humidity: ") + humidity + String(" %°"));
+  return humidity;
 }
 
 /// CCS-END
