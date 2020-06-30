@@ -160,8 +160,8 @@ void getOrUpdateSettings() {
   } else if(server.method() == HTTP_GET){
     StaticJsonDocument<200> doc;
   
-    doc["settings"]["name"] = caseName;
-    doc["settings"]["sensorsNumber"] = sensorsNumber;
+    doc["caseName"] = caseName;
+    doc["sensorsNumber"] = sensorsNumber;
     
     String responseAsJsonStr;
     serializeJson(doc, responseAsJsonStr);
