@@ -15,8 +15,13 @@
 /* Set these to your desired credentials. */
 const char *ssid = APSSID;
 const char *password = APPSK;
-const char *sensorsNumber = "4";
+
+// Case informations
 String caseName = "AIRQUALITY_1";
+const char *caseType = "AQ01";
+const String sensors[] = { "Temp","Humidity","CO2","TVOC" };
+
+
 
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -76,7 +81,7 @@ void handleRoot() {
 }
 
 void getCO2() {
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<30> doc;
   doc["co2"] = getCO2Datas();
   
   String responseAsJsonStr;
@@ -91,7 +96,7 @@ void getCO2() {
 }
 
 void getTVOC() {
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<30> doc;
   doc["tvoc"] = getTVOCDatas();  
   String responseAsJsonStr;
   serializeJson(doc, responseAsJsonStr);  
@@ -105,7 +110,7 @@ void getTVOC() {
 }
 
 void getTemp() {
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<30> doc;
   doc["temperature"] = getCurrentTemperature();  
   String responseAsJsonStr;
   serializeJson(doc, responseAsJsonStr);
@@ -119,7 +124,7 @@ void getTemp() {
 }
 
 void getHumidity() {
-  StaticJsonDocument<200> doc;
+  StaticJsonDocument<29> doc;
   doc["humidity"] = getCurrentHumidity();  
   String responseAsJsonStr;
   serializeJson(doc, responseAsJsonStr);
@@ -153,18 +158,27 @@ void getOrUpdateSettings() {
     } else {
       Serial.println(caseName);
       server.send(200,"text/plain", "No param found");
-    }   
+    }    
+  } else if(server.method() == HTTP_GET){    
+
+    int sensorsArray = sizeof(sensors) / sizeof(String);
+    // allocate the memory for the document
+    StaticJsonDocument<200> jsonArray;   
+     
+    // create an empty array
+    JsonArray sensorsAsJSON = jsonArray.to<JsonArray>();
     
-    
-    
-  } else if(server.method() == HTTP_GET){
-    StaticJsonDocument<200> doc;
+    for(int i = 0; i < sensorsArray; i++){
+      sensorsAsJSON.add(sensors[i]);
+    }
+    StaticJsonDocument<200> settingsAsJSON;
   
-    doc["caseName"] = caseName;
-    doc["sensorsNumber"] = sensorsNumber;
+    settingsAsJSON["caseName"] = caseName;
+    settingsAsJSON["caseType"] = caseType;
+    settingsAsJSON["sensors"] = sensorsAsJSON;
     
     String responseAsJsonStr;
-    serializeJson(doc, responseAsJsonStr);
+    serializeJson(settingsAsJSON, responseAsJsonStr);
     
     if(responseAsJsonStr){
       server.send(200, "application/json", responseAsJsonStr);
