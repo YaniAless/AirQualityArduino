@@ -69,7 +69,8 @@ void settingServer() {
   server.on("/co2", getCO2);
   server.on("/tvoc", getTVOC);
   server.on("/temp", getTemp);
-  server.on("/humidity", getHumidity);  
+  server.on("/humidity", getHumidity);
+  server.on("/sensors/all", getAllSensors);
   server.on("/settings", getOrUpdateSettings);
   
   server.begin();
@@ -80,9 +81,27 @@ void handleRoot() {
   server.send(200, "text/html", "<h1>Welcome to the main page of your Air Quality box</h1>");
 }
 
+void getAllSensors() {
+  StaticJsonDocument<200> doc;
+  doc["temperature"] = getCurrentTemperature();
+  doc["humidity"] = getCurrentHumidity();
+  doc["co2"] = getCO2Datas();
+  doc["tvoc"] = getTVOCDatas();  
+  
+  String responseAsJsonStr;
+  serializeJson(doc, responseAsJsonStr);      
+  
+  if(responseAsJsonStr){
+    server.send(200, "application/json", responseAsJsonStr);
+  }
+  else{
+    server.send(204, "text/plain", "No content" );
+  }
+}
+
 void getCO2() {
   StaticJsonDocument<30> doc;
-  doc["co2"] = getCO2Datas();
+  doc = getCO2Datas();
   
   String responseAsJsonStr;
   serializeJson(doc, responseAsJsonStr);      
@@ -97,7 +116,8 @@ void getCO2() {
 
 void getTVOC() {
   StaticJsonDocument<30> doc;
-  doc["tvoc"] = getTVOCDatas();  
+  doc = getTVOCDatas();  
+  
   String responseAsJsonStr;
   serializeJson(doc, responseAsJsonStr);  
   
@@ -111,7 +131,7 @@ void getTVOC() {
 
 void getTemp() {
   StaticJsonDocument<30> doc;
-  doc["temperature"] = getCurrentTemperature();  
+  doc = getCurrentTemperature();  
   String responseAsJsonStr;
   serializeJson(doc, responseAsJsonStr);
   
@@ -125,7 +145,7 @@ void getTemp() {
 
 void getHumidity() {
   StaticJsonDocument<29> doc;
-  doc["humidity"] = getCurrentHumidity();  
+  doc = getCurrentHumidity();  
   String responseAsJsonStr;
   serializeJson(doc, responseAsJsonStr);
   
@@ -231,29 +251,30 @@ void readDataIfAvailable(){
   delay(1000);
 }
 
-int getCO2Datas(){
-  int co2 = ccs.geteCO2();
-  if(co2){
-    //Serial.println(String("CO2: ") + co2 + String(" ppm"));
-    return co2;
-  }
-  else {
-    Serial.println("No values for CO2 sensor");
-    return 0;
+int getCO2Datas(){  
+  if(ccs.available()){    
+    if(!ccs.readData()){
+      Serial.println(ccs.geteCO2());
+      return ccs.geteCO2();
+    }
+    else{
+      Serial.println("No values for CO2 sensor");;
+      return -1;
+    }
   }
 }
 
 int getTVOCDatas(){
-  int tvocValue = ccs.getTVOC();
-
-  if(ccs.geteCO2()){
-    //Serial.println(String("TVOC: ") + tvocValue + String(" ppb"));
-    return tvocValue;
-  }
-  else {
-    Serial.println("No values for TVOC sensor");
-    return 0;
-  }  
+  if(ccs.available()){    
+    if(!ccs.readData()){
+      Serial.println(ccs.getTVOC());
+      return ccs.getTVOC();
+    }
+    else{
+      Serial.println("No values for TVOC sensor");;
+      return -1;
+    }
+  } 
 }
       
 float getCurrentTemperature(){
