@@ -28,11 +28,17 @@ Adafruit_CCS811 ccs;
 */
 
 void setup() {
-  Serial.begin(230400);
+  Serial.begin(115200);
   setupWIFI();
+  delay(1000);
   settingServer();
-  settingCCSParameters();
+  delay(1000);
+
+  delay(1000);
   dht.begin();
+  delay(1000);
+  settingCCSParameters();
+
 }
 
 void loop() {
@@ -52,29 +58,21 @@ void setupWIFI() {
   }
   wifiManager.setSTAStaticIPConfig(IPAddress(192, 168, 1, 99), IPAddress(192, 168, 1, 1), IPAddress(255, 255, 255, 0));
   wifiManager.autoConnect();
-
 }
 void settingServer() {
   delay(1000);
 
   Serial.println("Configuring access point...");
 
-  /* You can remove the password parameter if you want the AP to be open. */
-  //WiFi.softAP(ssid, password);
-
-  //IPAddress myIP = WiFi.softAPIP();
-
-  //Serial.print("AP IP address: ");
-  //Serial.println(myIP);
-
   server.on("/", handleRoot);
   server.on("/co2", getCO2);
   server.on("/tvoc", getTVOC);
   server.on("/temp", getTemp);
   server.on("/humidity", getHumidity);
-  server.on("/sensors/all", getAllSensors);
   server.on("/settings", getOrUpdateSettings);
   server.on("/reset", resetWifi);
+
+  // server.on("/sensors/all", getAllSensors); DISABLED
 
   server.begin();
   Serial.println("HTTP server started");
@@ -97,7 +95,7 @@ void getAllSensors() {
   Serial.println(getTVOCDatas());
 
   doc["temperature"] = getCurrentTemperature();
-  doc["humidity"] = getCurrentHumidity();
+  doc["humidity"] = getCurrentHumidity();  
   doc["co2"] = getCO2Datas();
   doc["tvoc"] = getTVOCDatas();
 
@@ -238,13 +236,16 @@ void getOrUpdateSettings() {
 void settingCCSParameters() {
   if (!ccs.begin()) {
     Serial.println("Failed to start sensor! Please check your wiring.");
-    delay(15000);
+    delay(30000);
+    ccs.SWReset();
+    //while(1);
   }
   //calibrate temperature sensor
   while (!ccs.available());
-
-  float temp = ccs.calculateTemperature();
+  ccs.setDriveMode(CCS811_DRIVE_MODE_250MS);
+  double temp = ccs.calculateTemperature();
   ccs.setTempOffset(temp - 25.0);
+
 }
 
 void debugReadDataIfAvailable() {
@@ -267,7 +268,9 @@ int getCO2Datas() {
   if (ccs.available()) {
     if (!ccs.readData()) {
       Serial.println(String("CO2 : ") + ccs.geteCO2());
-      ccs.setEnvironmentalData(dht.readHumidity(), dht.readTemperature());
+      double temp = getCurrentTemperature();
+      int humidity = getCurrentHumidity();
+      ccs.setEnvironmentalData(humidity, temp);
       return ccs.geteCO2();
     }
     else {
@@ -281,7 +284,9 @@ int getTVOCDatas() {
   if (ccs.available()) {
     if (!ccs.readData()) {
       Serial.println(String("TVOC : ") + ccs.getTVOC());
-      ccs.setEnvironmentalData(dht.readHumidity(), dht.readTemperature());
+      double temp = getCurrentTemperature();
+      int humidity = getCurrentHumidity();
+      ccs.setEnvironmentalData(humidity, temp);
       return ccs.getTVOC();
     }
     else {
@@ -291,10 +296,10 @@ int getTVOCDatas() {
 }
 
 double getCurrentTemperature() {
-  double celciusTemperature = ccs.calculateTemperature();
+  //double celciusTemperature = ccs.calculateTemperature();
   //double fahrenheitTemperature = dht.readTemperature(true);
 
-  //double celciusTemperature = dht.readTemperature();
+  double celciusTemperature = dht.readTemperature();
   Serial.println(String("Temp: ") + celciusTemperature + String(" C°"));
   return celciusTemperature;
 }
