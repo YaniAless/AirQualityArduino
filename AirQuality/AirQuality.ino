@@ -16,7 +16,7 @@
 // Case informations
 String caseName = "AIRQUALITY_1";
 const char *caseType = "AQ01";
-const String sensors[] = { "Temp", "Humidity", "CO2", "TVOC" };
+const String sensors[] = { "Temperature", "Humidity", "CO2", "TVOC" };
 
 DHT dht(DHTPIN, DHTTYPE);
 ESP8266WebServer server(8080);
